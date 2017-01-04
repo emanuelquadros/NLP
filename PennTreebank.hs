@@ -1,3 +1,7 @@
+-- Partial rewrite of Eric Kow's original code at
+-- https://hackage.haskell.org/package/penn-treebank
+
+-- Original license statement:
 -- BSD3 licensed
 -- Eric Kow <E.Y.Kow@brighton.ac.uk>
 
