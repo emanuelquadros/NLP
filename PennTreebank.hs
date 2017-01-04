@@ -4,7 +4,20 @@
 module NLP.PennTreebank (parseTree) where
 
 import Data.Tree
-import Text.ParserCombinators.Parsec hiding (spaces)
+import Text.ParserCombinators.Parsec hiding (spaces, try)
+import Debug.Trace
+import Text.Parsec hiding (try)
+import Text.Parsec.Prim
+import Data.Functor.Identity
+import Text.Parsec.Token
+
+println msg = trace (show msg) $ return ()
+
+seeNext :: Int -> ParsecT String u Identity ()
+seeNext n = do
+  s <- getParserState
+  let out = take n (stateInput s)
+  println out
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -20,13 +33,21 @@ parseString =
               "-RRB-" -> ")"
               _       -> s
 
+parseNode' :: Parser (Tree String)
+parseNode' = do
+  n <- parseString
+  many space
+  kids <- sepEndBy1 parseTree (many space)
+  return $ Node n kids
+
 parseNode :: Parser (Tree String)
-parseNode = do char '('
-               n <- parseString
-               many space
-               kids <- sepEndBy1 parseTree (many space)
-               char ')'
-               return $  Node n kids
+parseNode = choice [try (between (char '(') (char ')') parseNode'),
+                    try (between (string "((") (string "))") parseNode'),
+                    between start end parseTree]
+    where
+      start = sequence [char '(', space]
+      end = choice [try (sequence [char ')', (eof >> return ' ')]),
+                    sequence [char ')', space]]
 
 parseLeaf :: Parser (Tree String)
 parseLeaf = leaf `fmap` parseString
