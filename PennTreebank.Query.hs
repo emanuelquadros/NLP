@@ -1,4 +1,4 @@
-module NLP.PennTreebank.Query (searchPattern, queryHead) where
+module NLP.PennTreebank.Query (searchPattern) where
 
 import NLP.Tgrep2 (parsePattern, Tpattern(..))
 import NLP.PennTreebank (parseTree)
