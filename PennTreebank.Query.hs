@@ -41,8 +41,6 @@ queryHead pattern@(Head node) ltrees = do
 hasNode :: String -> LabeledTree -> Bool
 hasNode node ltree = any (elem node)
                      (filter nonTerminal (subTrees (tree ltree)))
---hasNode node ltree = elem node $ [rootLabel (tree (ltree))] ++
---                     map rootLabel (subForest (tree (ltree)))
 
 nonTerminal :: Tree a -> Bool
 nonTerminal = not . isLeaf . fromTree
