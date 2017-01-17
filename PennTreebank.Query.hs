@@ -49,9 +49,17 @@ patternFilter (Tpattern label relations) =
 relationFilter :: Tpattern -> Relation -> LTreeFilter
 relationFilter node (Relation op pattern) =
     case op of
-      ParentOf -> filter (\lt -> not $ null
-                                 ((patternFilter pattern) (labeledSubTrees lt)))
-                  . (patternFilter node)
+      -- test whether the pattern exists in the domain of node
+      ParentOf -> hasChild pattern . patternFilter node
+
+      -- test whether node is in the domain of the specified pattern
+      ChildOf -> hasChild node . patternFilter pattern
+
+-- This filter must return subtrees that have a certain pattern (a node or a
+-- relation) among their descendants.
+hasChild :: Tpattern -> LTreeFilter
+hasChild pattern =
+    filter (\lt -> not $ null $ (patternFilter pattern) (labeledSubTrees lt))
 
 nonTerminal :: Tree a -> Bool
 nonTerminal = not . isLeaf . fromTree
