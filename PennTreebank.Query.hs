@@ -11,7 +11,6 @@ import Data.Maybe (fromMaybe)
 import Text.Parsec (parse, many)
 import Text.Parsec.Error (ParseError)
 import System.IO (FilePath, hGetContents, hClose, openFile, IOMode( ReadMode ) )
-import Control.Monad (filterM)
 import Utils.Dir (getFiles, lastN)
 import Control.DeepSeq (deepseq)
 
