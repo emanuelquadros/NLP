@@ -36,8 +36,11 @@ searchPattern str basedir = do
     Left err -> error ("Check the syntax of your query.\n" ++ (show err))
 
 labeledSubTrees :: LabeledTree -> [LabeledTree]
-labeledSubTrees ltree = map labelTree (subTrees (tree ltree))
-    where labelTree = \t -> LTree { fileid = fileid ltree,
+labeledSubTrees ltree = propagateLabels ltree (subTrees (tree ltree))
+
+propagateLabels :: LabeledTree -> [Tree String] -> [LabeledTree]
+propagateLabels ltree sub = map labeltree sub
+    where labeltree = \t -> LTree { fileid = fileid ltree,
                                     pos = pos ltree,
                                     tree = t }
 
@@ -49,17 +52,32 @@ patternFilter (Tpattern label relations) =
 relationFilter :: Tpattern -> Relation -> LTreeFilter
 relationFilter node (Relation op pattern) =
     case op of
-      -- test whether the pattern exists in the domain of node
+      -- immediate dominance filters
       ParentOf -> hasChild pattern . patternFilter node
-
-      -- test whether node is in the domain of the specified pattern
       ChildOf -> hasChild node . patternFilter pattern
+
+      -- dominance
+--      AncestorOf -> undefined
+--      DescendantOf -> undefined
+
+--- Filters --------------------------------------------------------------------
+
+hasChild :: Tpattern -> LTreeFilter
+hasChild pattern =
+    filter (\lt -> not $ null $ (patternFilter pattern) (lSubForest lt))
 
 -- This filter must return subtrees that have a certain pattern (a node or a
 -- relation) among their descendants.
-hasChild :: Tpattern -> LTreeFilter
-hasChild pattern =
+hasDescendant :: Tpattern -> LTreeFilter
+hasDescendant pattern =
     filter (\lt -> not $ null $ (patternFilter pattern) (labeledSubTrees lt))
+
+--------------------------------------------------------------------------------
+
+-- Calls the Data.Tree subForest fuction, but propagates the labels from the
+-- main tree.
+lSubForest :: LabeledTree -> [LabeledTree]
+lSubForest ltree = propagateLabels ltree (subForest (tree ltree))
 
 nonTerminal :: Tree a -> Bool
 nonTerminal = not . isLeaf . fromTree
