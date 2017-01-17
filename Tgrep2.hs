@@ -1,17 +1,23 @@
-module NLP.Tgrep2 (parsePattern, Tpattern(..)) where
+module Tgrep2 (parsePattern, Tpattern(..), Relation(..), Operator(..)) where
 
-import Text.Parsec (eof, many1)
-import Text.Parsec.Char (alphaNum, spaces)
+import Text.Parsec (eof, many1, many)
+import Text.Parsec.Char (alphaNum, spaces, char)
+import Text.Parsec.Combinator (between)
 import Text.ParserCombinators.ReadP (manyTill)
 import Text.ParserCombinators.Parsec.Prim (Parser, try, (<|>))
 import Text.Parsec.Language (emptyDef)
 import qualified Text.ParserCombinators.Parsec.Token as Token
 
-
-data Tpattern = Head Node | Tpattern Node Operator Tpattern
+data Tpattern = Node { label :: String }
+              | Tpattern { label :: String,
+                           relations :: [Relation]
+                         }
                 deriving (Show)
 
-type Node = String
+data Relation = Conj Relation Relation
+              | Disj Relation Relation
+              | Relation Operator Tpattern
+                deriving (Show)
 
 data Operator = ParentOf | ChildOf
                  deriving (Show, Eq)
