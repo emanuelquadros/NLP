@@ -1,9 +1,9 @@
 module NLP.PennTreebank.Query (searchPattern) where
 
-import NLP.Tgrep2 (parsePattern, Tpattern(..))
+import Tgrep2 (parsePattern, Tpattern(..), Relation(..), Operator(..))
 import NLP.PennTreebank (parseTree)
 import Data.String.Utils (strip)
-import Data.Tree (Tree(..))
+import Data.Tree (Tree(rootLabel, subForest))
 import Data.Tree.Zipper (isLeaf, fromTree)
 import Data.List (elemIndex, intercalate)
 import Data.List.Split (splitOn)
@@ -24,22 +24,34 @@ data LabeledTree = LTree { fileid :: String
                          , tree :: Tree String
                          } deriving (Show)
 
+type LTreeFilter = [LabeledTree] -> [LabeledTree]
 
 searchPattern :: String -> FilePath -> IO [LabeledTree]
 searchPattern str basedir = do
-  let p = parse parsePattern "" str
   forest <- buildForest basedir
-  case p of
-    Right (Head node) -> queryHead (Head node) forest
+  let lforest = concat (map labeledSubTrees forest)
+  case (parse parsePattern "" str) of
+    Right pattern -> do
+      return ((patternFilter pattern) lforest)
     Left err -> error ("Check the syntax of your query.\n" ++ (show err))
 
-queryHead :: Tpattern -> [LabeledTree] -> IO [LabeledTree]
-queryHead pattern@(Head node) ltrees = do
-    return (filter (hasNode node) ltrees)
+labeledSubTrees :: LabeledTree -> [LabeledTree]
+labeledSubTrees ltree = map labelTree (subTrees (tree ltree))
+    where labelTree = \t -> LTree { fileid = fileid ltree,
+                                    pos = pos ltree,
+                                    tree = t }
 
-hasNode :: String -> LabeledTree -> Bool
-hasNode node ltree = any (elem node)
-                     (filter nonTerminal (subTrees (tree ltree)))
+patternFilter :: Tpattern -> LTreeFilter
+patternFilter (Node label) = filter (\lt -> rootLabel (tree lt) == label)
+patternFilter (Tpattern label relations) =
+    foldl1 (.) (map (relationFilter (Node label)) relations)
+
+relationFilter :: Tpattern -> Relation -> LTreeFilter
+relationFilter node (Relation op pattern) =
+    case op of
+      ParentOf -> filter (\lt -> not $ null
+                                 ((patternFilter pattern) (labeledSubTrees lt)))
+                  . (patternFilter node)
 
 nonTerminal :: Tree a -> Bool
 nonTerminal = not . isLeaf . fromTree
@@ -58,13 +70,11 @@ buildForest basedir = do
   return (concat trees)
 
 -- get all subtrees of a tree, where `subtree-of'
--- is taken to be a reflexive relation.
+-- is not taken to be a reflexive relation.
 subTrees :: Eq a => Tree a -> [Tree a]
-subTrees t
-    | [] == (subForest t) = [t]
-    | otherwise = t:foldl1 (++) (map subTrees kids)
-    where
-      kids = subForest t
+subTrees t = foldl (++) [] (map subTrees' (subForest t))
+    where subTrees' sub = sub:foldl (++) [] (map subTrees' kids)
+              where kids = filter (not . isLeaf . fromTree) (subForest sub)
 
 -- Send the content of a file to parseText
 parseFile :: FilePath -> IO [LabeledTree]
