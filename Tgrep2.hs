@@ -27,20 +27,31 @@ languageDef = emptyDef { Token.reservedOpNames = ["<", ">"] }
 lexer = Token.makeTokenParser languageDef
 reservedOp = Token.reservedOp lexer
 
+parens = between (char '(') (char ')')
+--brackets = between (char '[') (char ']')
+
 parsePattern :: Parser Tpattern
 parsePattern = do
   spaces
-  pattern <- try (fmap Head parseNode <* (spaces >> eof))
+  pattern <- parens parsePattern
+             <|> try (fmap Node parseNode <* (spaces >> eof))
              <|> do {
                    node <- parseNode;
                    spaces;
-                   op <- parseOperator;
-                   subpattern <- parsePattern;
-                   return (Tpattern node op subpattern)
+                   relations <- many parseRelation;
+                   return (Tpattern node relations)
                  }
   return pattern
 
-parseNode :: Parser Node
+parseRelation :: Parser Relation
+parseRelation = do
+  spaces
+  op <- parseOperator
+  spaces
+  subpattern <- parens parsePattern <|> fmap Node parseNode
+  return (Relation op subpattern)
+
+parseNode :: Parser String
 parseNode = do
   node <- many1 alphaNum
   return node
