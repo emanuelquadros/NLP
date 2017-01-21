@@ -3,8 +3,9 @@ module NLP.PennTreebank.Query (searchPattern) where
 import Tgrep2 (parsePattern, Tpattern(..), Relation(..), Operator(..))
 import NLP.PennTreebank (parseTree)
 import Data.String.Utils (strip)
-import Data.Tree (Tree(rootLabel, subForest))
-import Data.Tree.Zipper (isLeaf, fromTree)
+import Data.Tree (Tree(rootLabel, subForest), Forest)
+import Data.Tree.Zipper (isLeaf, fromTree, toTree, forest, children,
+                         TreePos(..), Full, Empty, PosType)
 import Data.List (elemIndex, intercalate)
 import Data.List.Split (splitOn)
 import Data.Maybe (fromMaybe)
@@ -20,11 +21,15 @@ data Result = Result { file :: String
                      } deriving (Show)
 
 data LabeledTree = LTree { fileid :: String
-                         , pos :: Int
-                         , tree :: Tree String
-                         } deriving (Show)
+                         , treeIndex :: Int
+                         , tokenIndex :: Int
+                         , tree :: TreePos Full String
+                         }
+                   deriving (Show)
 
 type LTreeFilter = [LabeledTree] -> [LabeledTree]
+type Terminal = TreePos Full String
+type Subtree = TreePos Full String
 
 searchPattern :: String -> FilePath -> IO [LabeledTree]
 searchPattern str basedir = do
@@ -38,14 +43,24 @@ searchPattern str basedir = do
 labeledSubTrees :: LabeledTree -> [LabeledTree]
 labeledSubTrees ltree = propagateLabels ltree (subTrees (tree ltree))
 
-propagateLabels :: LabeledTree -> [Tree String] -> [LabeledTree]
-propagateLabels ltree sub = map labeltree sub
-    where labeltree = \t -> LTree { fileid = fileid ltree,
-                                    pos = pos ltree,
-                                    tree = t }
+propagateLabels :: LabeledTree -> [TreePos Full String] -> [LabeledTree]
+propagateLabels ltree sub = map (labelSubTree ltree) sub
+
+labelSubTree :: LabeledTree -> Subtree -> LabeledTree
+labelSubTree ltree tr = LTree { fileid = fileid ltree,
+                                treeIndex = treeIndex ltree,
+                                tokenIndex =
+                                    findTerminal (firstTerminal tr) (tree ltree),
+                                tree = tr }
+
+findTerminal :: Terminal -> Subtree -> Int
+findTerminal term nt = fromMaybe 0 (elemIndex term (terminals nt))
+
+firstTerminal :: Subtree -> Terminal
+firstTerminal = head . terminals
 
 patternFilter :: Tpattern -> LTreeFilter
-patternFilter (Node label) = filter (\lt -> rootLabel (tree lt) == label)
+patternFilter (Node label) = filter (\lt -> label == rootLabel (toTree (tree lt)))
 patternFilter (Tpattern label relations) =
     foldl1 (.) (map (relationFilter (Node label)) relations)
 
@@ -74,21 +89,18 @@ hasDescendant pattern =
 
 --------------------------------------------------------------------------------
 
--- Calls the Data.Tree subForest fuction, but propagates the labels from the
--- main tree.
+-- Gets all subtrees and propagates labels from the  main tree.
 lSubForest :: LabeledTree -> [LabeledTree]
-lSubForest ltree = propagateLabels ltree (subForest (tree ltree))
-
-nonTerminal :: Tree a -> Bool
-nonTerminal = not . isLeaf . fromTree
+lSubForest ltree = propagateLabels ltree (posForest (tree ltree))
 
 -- Wrapper around the parser, calling it as many times as possible on
 -- a string, and returning a list.
-parseText :: FilePath -> String -> [Tree String]
+-- The filename argument is for debugging purposes only.
+parseText :: FilePath -> String -> [TreePos Full String]
 parseText path text = case parse (many parseTree) "" (strip text) of
                         Left err -> error $ "Input:\n" ++ show path ++
                                     "\nError:\n" ++ show err
-                        Right result -> result
+                        Right result -> map fromTree result
 
 buildForest :: FilePath -> IO [LabeledTree]
 buildForest basedir = do
@@ -97,10 +109,22 @@ buildForest basedir = do
 
 -- get all subtrees of a tree, where `subtree-of'
 -- is not taken to be a reflexive relation.
-subTrees :: Eq a => Tree a -> [Tree a]
-subTrees t = foldl (++) [] (map subTrees' (subForest t))
+subTrees :: TreePos Full String -> [Subtree]
+subTrees t = foldl (++) [] (map subTrees' (posForest (children t)))
     where subTrees' sub = sub:foldl (++) [] (map subTrees' kids)
-              where kids = filter (not . isLeaf . fromTree) (subForest sub)
+              where kids = filter (not . isLeaf) (posForest sub)
+                           
+isTerminal :: Tree a -> Bool
+isTerminal = isLeaf . fromTree
+
+terminals :: Subtree -> [Terminal]
+terminals t
+    | isLeaf t = [t]
+    | otherwise = foldl (++) [] (map terminals (posForest (children t)))
+
+-- Returns all the location of all the trees found at a given location.
+posForest :: PosType t => TreePos t String -> [Subtree]
+posForest = (map fromTree) . forest
 
 -- Send the content of a file to parseText
 parseFile :: FilePath -> IO [LabeledTree]
@@ -109,16 +133,15 @@ parseFile f = do
   contents <- hGetContents h
   deepseq contents (hClose h)
 
-  let ltrees = parseText f (strip contents)
+  let trees = parseText f (strip contents)
+  return $ map (labelTree f trees) trees
 
-  -- We need to return trees labeled with a file id and their position in the
-  -- file.
-  let labelTree = \e -> LTree { fileid = getFileId f
-                              , pos = fromMaybe 0 (elemIndex e ltrees)
-                              , tree = e}
-  
-  return $ map labelTree ltrees
-
+labelTree :: FilePath -> [Subtree] -> Subtree -> LabeledTree
+labelTree file trees tr = LTree { fileid = getFileId file,
+                                  treeIndex = fromMaybe 0 (elemIndex tr trees),
+                                  tokenIndex = 0,
+                                  tree = tr }
+                                              
 -- helper function to get just an ID from a filepath
 getFileId :: FilePath -> String
 getFileId path = intercalate "/" (lastN 3 (splitOn "/" path))
