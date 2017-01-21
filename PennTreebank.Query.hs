@@ -4,7 +4,7 @@ import Tgrep2 (parsePattern, Tpattern(..), Relation(..), Operator(..))
 import NLP.PennTreebank (parseTree)
 import Data.String.Utils (strip)
 import Data.Tree (Tree(rootLabel, subForest))
-import Data.Tree.Zipper (isLeaf, fromTree)
+import Data.Tree.Zipper (isLeaf, fromTree, toTree)
 import Data.List (elemIndex, intercalate)
 import Data.List.Split (splitOn)
 import Data.Maybe (fromMaybe)
@@ -21,6 +21,7 @@ data Result = Result { file :: String
 
 data LabeledTree = LTree { fileid :: String
                          , pos :: Int
+                         , tokenIndex :: Int
                          , tree :: Tree String
                          } deriving (Show)
 
@@ -39,11 +40,28 @@ labeledSubTrees :: LabeledTree -> [LabeledTree]
 labeledSubTrees ltree = propagateLabels ltree (subTrees (tree ltree))
 
 propagateLabels :: LabeledTree -> [Tree String] -> [LabeledTree]
-propagateLabels ltree sub = map labeltree sub
-    where labeltree = \t -> LTree { fileid = fileid ltree,
-                                    pos = pos ltree,
-                                    tree = t }
+propagateLabels ltree sub = map (labelSubTree ltree) sub
 
+-- The trickiest part is labeling subtrees according to where they appear inside
+-- the mother tree. This label refers to the position of the first terminal
+-- of the subtree in relation to all terminal elements in the mother tree.
+labelSubTree :: LabeledTree -> Tree String -> LabeledTree
+labelSubTree ltree tr = LTree { fileid = fileid ltree,
+                                pos = pos ltree,
+                                tokenIndex =
+                                    findTerminal (firstTerminal tr) (tree ltree),
+                                tree = tr }
+
+findTerminal :: Eq a => Tree a -> Tree a -> Int
+findTerminal term nt = fromMaybe 0 (elemIndex term (terminals nt))
+
+-- This helper will return the first terminal element from a tree/subtree.
+firstTerminal :: Eq a => Tree a -> Tree a
+firstTerminal = head . terminals
+
+terminals :: Eq a => Tree a -> [Tree a]
+terminals = (filter isTerminal) . subTrees
+                      
 patternFilter :: Tpattern -> LTreeFilter
 patternFilter (Node label) = filter (\lt -> rootLabel (tree lt) == label)
 patternFilter (Tpattern label relations) =
@@ -79,8 +97,8 @@ hasDescendant pattern =
 lSubForest :: LabeledTree -> [LabeledTree]
 lSubForest ltree = propagateLabels ltree (subForest (tree ltree))
 
-nonTerminal :: Tree a -> Bool
-nonTerminal = not . isLeaf . fromTree
+isTerminal :: Tree a -> Bool
+isTerminal = isLeaf . fromTree
 
 -- Wrapper around the parser, calling it as many times as possible on
 -- a string, and returning a list.
@@ -99,8 +117,7 @@ buildForest basedir = do
 -- is not taken to be a reflexive relation.
 subTrees :: Eq a => Tree a -> [Tree a]
 subTrees t = foldl (++) [] (map subTrees' (subForest t))
-    where subTrees' sub = sub:foldl (++) [] (map subTrees' kids)
-              where kids = filter (not . isLeaf . fromTree) (subForest sub)
+    where subTrees' sub = sub:foldl (++) [] (map subTrees' (subForest sub))
 
 -- Send the content of a file to parseText
 parseFile :: FilePath -> IO [LabeledTree]
@@ -115,6 +132,7 @@ parseFile f = do
   -- file.
   let labelTree = \e -> LTree { fileid = getFileId f
                               , pos = fromMaybe 0 (elemIndex e ltrees)
+                              , tokenIndex = 0
                               , tree = e}
   
   return $ map labelTree ltrees
