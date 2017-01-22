@@ -11,21 +11,26 @@ import qualified Text.ParserCombinators.Parsec.Token as Token
 ---    wsj/17/wsj_1734.mrg 3 49 equity 01 44:2-ARG2 49:0-rel
 ---
 --- where each field is separated by a whitespace.
-data Nom = Nom { file :: String
-               , tree :: Int
-               , token :: Int
-               , lemma :: String
-               , sense :: Int
-               , pieces :: [Piece]
+
+data Nom = Nom { tree :: Int,
+                 token :: Int,
+                 lemma :: String,
+                 sense :: Int,
+                 pieces :: [Piece]
                } deriving (Show)
 
-data Piece = Piece { pointers :: Pointers
-                   , label :: String
+-- We use file indexes as keys in a map of Nombank entries.
+newtype FileIndex = File String deriving (Eq, Show)
+
+newtype NomEntry = NomEntry (FileIndex, Nom) deriving (Show)
+
+data Piece = Piece { pointers :: Pointers,
+                     label :: String
                    } deriving (Show)
 
-data Pointers = Pointer { ptoken :: Int
-                       , level :: Int
-                       }
+data Pointers = Pointer { ptoken :: Int,
+                          level :: Int
+                        }
               | ConcatPointer [Pointers]
               | PointerChain [Pointers] deriving (Show)
 -------------------------------------------------
@@ -36,15 +41,15 @@ lexer = Token.makeTokenParser emptyDef
 lexeme = Token.lexeme lexer
 ----------------------------------------------
 
-parseNom :: Parser Nom
+parseNom :: Parser NomEntry
 parseNom = do
-  file <- lexeme parseString
+  filename <- lexeme parseString
   tree <- read <$> lexeme (many1 digit)
   token <- read <$> lexeme (many1 digit)
   lemma <- lexeme parseString
   sense <- read <$> lexeme (many1 digit)
   labels <- many parsePieces
-  return (Nom file tree token lemma sense labels)
+  return (NomEntry (File filename, (Nom tree token lemma sense labels)))
 
 parseString :: Parser String
 parseString = do
