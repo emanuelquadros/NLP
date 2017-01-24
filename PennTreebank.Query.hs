@@ -112,7 +112,7 @@ buildForest basedir = do
 subTrees :: TreePos Full String -> [Subtree]
 subTrees t = foldl (++) [] (map subTrees' (posForest (children t)))
     where subTrees' sub = sub:foldl (++) [] (map subTrees' kids)
-              where kids = filter (not . isLeaf) (posForest sub)
+              where kids = filter (not . isLeaf) (posForest (children sub))
                            
 isTerminal :: Tree a -> Bool
 isTerminal = isLeaf . fromTree
@@ -122,7 +122,7 @@ terminals t
     | isLeaf t = [t]
     | otherwise = foldl (++) [] (map terminals (posForest (children t)))
 
--- Returns all the location of all the trees found at a given location.
+-- Returns the location of all the trees found at a given location.
 posForest :: PosType t => TreePos t String -> [Subtree]
 posForest = (map fromTree) . forest
 
