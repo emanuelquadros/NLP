@@ -1,4 +1,4 @@
-module Nombank (parseNom) where
+module Nombank (parseNom, lemma, Nom) where
 
 import Text.Parsec (many, many1, skipMany1, digit, char, noneOf)
 import Text.ParserCombinators.Parsec.Prim (Parser, (<|>), try)
@@ -12,27 +12,23 @@ import qualified Text.ParserCombinators.Parsec.Token as Token
 ---
 --- where each field is separated by a whitespace.
 
-data Nom = Nom { tree :: Int,
+data Nom = Nom { file :: String,
+                 tree :: Int,
                  token :: Int,
                  lemma :: String,
                  sense :: Int,
                  pieces :: [Piece]
-               } deriving (Show)
-
--- We use file indexes as keys in a map of Nombank entries.
-newtype FileIndex = File String deriving (Eq, Show)
-
-newtype NomEntry = NomEntry (FileIndex, Nom) deriving (Show)
+               } deriving (Eq, Show)
 
 data Piece = Piece { pointers :: Pointers,
                      label :: String
-                   } deriving (Show)
+                   } deriving (Eq, Show)
 
 data Pointers = Pointer { ptoken :: Int,
                           level :: Int
                         }
               | ConcatPointer [Pointers]
-              | PointerChain [Pointers] deriving (Show)
+              | PointerChain [Pointers] deriving (Eq, Show)
 -------------------------------------------------
 
 --- lexer, just to make the code more compact
@@ -41,15 +37,15 @@ lexer = Token.makeTokenParser emptyDef
 lexeme = Token.lexeme lexer
 ----------------------------------------------
 
-parseNom :: Parser NomEntry
+parseNom :: Parser Nom
 parseNom = do
-  filename <- lexeme parseString
+  file <- lexeme parseString
   tree <- read <$> lexeme (many1 digit)
   token <- read <$> lexeme (many1 digit)
   lemma <- lexeme parseString
   sense <- read <$> lexeme (many1 digit)
   labels <- many parsePieces
-  return (NomEntry (File filename, (Nom tree token lemma sense labels)))
+  return (Nom file tree token lemma sense labels)
 
 parseString :: Parser String
 parseString = do
