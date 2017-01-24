@@ -1,7 +1,7 @@
-module NLP.PennTreebank.Query (searchPattern) where
+module PennTreebank.Query (searchPattern) where
 
 import Tgrep2 (parsePattern, Tpattern(..), Relation(..), Operator(..))
-import NLP.PennTreebank (parseTree)
+import PennTreebank (parseTree)
 import Data.String.Utils (strip)
 import Data.Tree (Tree(rootLabel, subForest), Forest)
 import Data.Tree.Zipper (isLeaf, fromTree, toTree, forest, children,
