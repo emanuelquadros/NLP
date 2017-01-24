@@ -1,4 +1,4 @@
-module Nombank (parseNom, lemma, Nom) where
+module Nombank (parseNom, lemma, sense, Nom) where
 
 import Text.Parsec (many, many1, skipMany1, digit, char, noneOf)
 import Text.ParserCombinators.Parsec.Prim (Parser, (<|>), try)
