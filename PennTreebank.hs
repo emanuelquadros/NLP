@@ -5,7 +5,7 @@
 -- BSD3 licensed
 -- Eric Kow <E.Y.Kow@brighton.ac.uk>
 
-module NLP.PennTreebank (parseTree) where
+module PennTreebank (parseTree) where
 
 import Data.Tree
 import Text.ParserCombinators.Parsec hiding (spaces, try)
