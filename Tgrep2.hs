@@ -19,10 +19,10 @@ data Relation = Conj Relation Relation
               | Relation Operator Tpattern
                 deriving (Show)
 
-data Operator = ParentOf | ChildOf
+data Operator = ParentOf | ChildOf | SisterOf
                  deriving (Show, Eq)
 
-languageDef = emptyDef { Token.reservedOpNames = ["<", ">"] }
+languageDef = emptyDef { Token.reservedOpNames = ["<", ">", "$"] }
 
 lexer = Token.makeTokenParser languageDef
 reservedOp = Token.reservedOp lexer
