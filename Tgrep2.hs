@@ -8,8 +8,8 @@ import Text.ParserCombinators.Parsec.Prim (Parser, try, (<|>))
 import Text.Parsec.Language (emptyDef)
 import qualified Text.ParserCombinators.Parsec.Token as Token
 
-data Tpattern = Node { label :: String }
-              | Tpattern { label :: String,
+data Tpattern = Node { nodelabel :: String }
+              | Tpattern { nodelabel :: String,
                            relations :: [Relation]
                          }
                 deriving (Show)
