@@ -1,4 +1,4 @@
-module PennTreebank.Query (searchPattern) where
+module PennTreebank.Query (searchPattern, LabeledTree(..), getTree) where
 
 import Tgrep2 (parsePattern, Tpattern(..), Relation(..), Operator(..))
 import PennTreebank (parseTree)
@@ -16,11 +16,6 @@ import System.IO (FilePath, hGetContents, hClose, openFile, IOMode( ReadMode ) )
 import Utils.Dir (getFiles, lastN)
 import Control.DeepSeq (deepseq)
 
-data Result = Result { file :: String
-                     , treeNumber :: Int
-                     , subtree :: Tree String
-                     } deriving (Show)
-
 data LabeledTree = LTree { fileid :: String
                          , treeIndex :: Int
                          , tokenIndex :: Int
@@ -31,6 +26,9 @@ data LabeledTree = LTree { fileid :: String
 type LTreeFilter = [LabeledTree] -> [LabeledTree]
 type Terminal = TreePos Full String
 type Subtree = TreePos Full String
+
+getTree :: LabeledTree -> TreePos Full String
+getTree = treepos
 
 searchPattern :: String -> FilePath -> IO [LabeledTree]
 searchPattern str basedir = do
@@ -72,6 +70,8 @@ relationFilter node (Relation op pattern) =
       -- immediate dominance filters
       ParentOf -> hasChild pattern . patternFilter node
       ChildOf -> hasChild node . patternFilter pattern
+
+     -- SisterOf -> 
 
       -- dominance
 --      AncestorOf -> undefined
@@ -122,7 +122,6 @@ terminals t
     | otherwise = foldl (++) [] (map terminals (posForest t))
 
 -- Returns the location of all the trees found at a given location.
-
 posForest :: TreePos Full String -> [TreePos Full String]
 posForest start = case firstChild start of
                     Just pos -> pos:go pos
