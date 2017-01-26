@@ -60,3 +60,4 @@ parseOperator :: Parser Operator
 parseOperator = do
   (reservedOp "<" >> return ParentOf)
   <|> (reservedOp ">" >> return ChildOf)
+  <|> (reservedOp "$" >> return SisterOf)
