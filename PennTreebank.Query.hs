@@ -112,21 +112,24 @@ buildForest basedir = do
 -- get all subtrees of a tree, where `subtree-of'
 -- is not taken to be a reflexive relation.
 subTrees :: TreePos Full String -> [Subtree]
-subTrees t = foldl (++) [] (map subTrees' (posForest (children t)))
+subTrees t = foldl (++) [] (map subTrees' (posForest t))
     where subTrees' sub = sub:foldl (++) [] (map subTrees' kids)
-              where kids = filter (not . isLeaf) (posForest (children sub))
+              where kids = filter (not . isLeaf) (posForest sub)
                            
-isTerminal :: Tree a -> Bool
-isTerminal = isLeaf . fromTree
-
 terminals :: Subtree -> [Terminal]
 terminals t
     | isLeaf t = [t]
-    | otherwise = foldl (++) [] (map terminals (posForest (children t)))
+    | otherwise = foldl (++) [] (map terminals (posForest t))
 
 -- Returns the location of all the trees found at a given location.
-posForest :: PosType t => TreePos t String -> [Subtree]
-posForest = (map fromTree) . forest
+
+posForest :: TreePos Full String -> [TreePos Full String]
+posForest start = case firstChild start of
+                    Just pos -> pos:go pos
+                    Nothing -> []
+    where go pt = case next pt of
+                    Just t -> t:go t
+                    Nothing -> []
 
 -- Send the content of a file to parseText
 parseFile :: FilePath -> IO [LabeledTree]
