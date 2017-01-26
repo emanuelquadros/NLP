@@ -4,8 +4,9 @@ import Tgrep2 (parsePattern, Tpattern(..), Relation(..), Operator(..))
 import PennTreebank (parseTree)
 import Data.String.Utils (strip)
 import Data.Tree (Tree(rootLabel, subForest), Forest)
-import Data.Tree.Zipper (isLeaf, fromTree, toTree, forest, children,
-                         TreePos(..), Full, Empty, PosType)
+import Data.Tree.Zipper (isLeaf, fromTree, toTree, forest, children, next, tree,
+                         nextSpace, nextTree, label, firstChild, TreePos(..),
+                         Full, Empty)
 import Data.List (elemIndex, intercalate)
 import Data.List.Split (splitOn)
 import Data.Maybe (fromMaybe)
