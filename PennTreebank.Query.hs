@@ -23,7 +23,7 @@ data Result = Result { file :: String
 data LabeledTree = LTree { fileid :: String
                          , treeIndex :: Int
                          , tokenIndex :: Int
-                         , tree :: TreePos Full String
+                         , treepos :: TreePos Full String
                          }
                    deriving (Show)
 
@@ -41,7 +41,7 @@ searchPattern str basedir = do
     Left err -> error ("Check the syntax of your query.\n" ++ (show err))
 
 labeledSubTrees :: LabeledTree -> [LabeledTree]
-labeledSubTrees ltree = propagateLabels ltree (subTrees (tree ltree))
+labeledSubTrees ltree = propagateLabels ltree (subTrees (treepos ltree))
 
 propagateLabels :: LabeledTree -> [TreePos Full String] -> [LabeledTree]
 propagateLabels ltree sub = map (labelSubTree ltree) sub
@@ -60,7 +60,7 @@ firstTerminal :: Subtree -> Terminal
 firstTerminal = head . terminals
 
 patternFilter :: Tpattern -> LTreeFilter
-patternFilter (Node label) = filter (\lt -> label == rootLabel (toTree (tree lt)))
+patternFilter (Node l) = filter (\lt -> l == label (treepos lt))
 patternFilter (Tpattern label relations) =
     foldl1 (.) (map (relationFilter (Node label)) relations)
 
@@ -91,7 +91,7 @@ hasDescendant pattern =
 
 -- Gets all subtrees and propagates labels from the  main tree.
 lSubForest :: LabeledTree -> [LabeledTree]
-lSubForest ltree = propagateLabels ltree (posForest (tree ltree))
+lSubForest ltree = propagateLabels ltree (posForest (treepos ltree))
 
 -- Wrapper around the parser, calling it as many times as possible on
 -- a string, and returning a list.
@@ -140,7 +140,7 @@ labelTree :: FilePath -> [Subtree] -> Subtree -> LabeledTree
 labelTree file trees tr = LTree { fileid = getFileId file,
                                   treeIndex = fromMaybe 0 (elemIndex tr trees),
                                   tokenIndex = 0,
-                                  tree = tr }
+                                  treepos = tr }
                                               
 -- helper function to get just an ID from a filepath
 getFileId :: FilePath -> String
