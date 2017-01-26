@@ -50,8 +50,9 @@ labelSubTree :: LabeledTree -> Subtree -> LabeledTree
 labelSubTree ltree tr = LTree { fileid = fileid ltree,
                                 treeIndex = treeIndex ltree,
                                 tokenIndex =
-                                    findTerminal (firstTerminal tr) (tree ltree),
-                                tree = tr }
+                                    findTerminal (firstTerminal tr)
+                                                     (treepos ltree),
+                                treepos = tr }
 
 findTerminal :: Terminal -> Subtree -> Int
 findTerminal term nt = fromMaybe 0 (elemIndex term (terminals nt))
